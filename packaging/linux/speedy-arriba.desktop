@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Speedy Gonzales: Arriba Edition
+Comment=Enhanced native SNES frontend for Speedy Gonzales: Los Gatos Bandidos
+Exec=speedy
+Icon=speedy-arriba
+Categories=Game;Emulator;
+Terminal=false

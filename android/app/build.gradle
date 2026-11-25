@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.vito2492.speedyarriba'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.vito2492.speedyarriba"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DSDL2_DIR=${project.findProperty('SDL2_DIR') ?: System.getenv('SDL2_DIR') ?: ''}"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+        }
+    }
+
+    sourceSets {
+        main {
+            def sdl2Dir = project.findProperty('SDL2_DIR') ?: System.getenv('SDL2_DIR')
+            if (sdl2Dir) {
+                java.srcDirs += "${sdl2Dir}/android-project/app/src/main/java"
+            }
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+}
+
+dependencies {
+}
