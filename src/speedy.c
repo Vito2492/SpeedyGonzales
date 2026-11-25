@@ -530,6 +530,8 @@ static const world_t worlds[7] = {
 static uint8_t *title_snap, *map_snap;
 static size_t snap_size;
 static bool started;
+static bool classic_boot;
+static bool classic_diff_applied;
 static uint32_t total_frames;
 
 static void boot_and_cache_snapshots(void)
@@ -597,6 +599,16 @@ static void apply_cheats_frame(void)
 {
     uint8_t *m = wram();
     if (!m || !started) return;
+    if (cfg.c_sunsoft) m[RAM_CHEAT_MODE] = 0x08;
+    // In Classic Mode, keep logos/intro/title screen 100% untouched until a game initializes hearts & lives
+    if (classic_boot) {
+        bool in_game = (m[RAM_MAX_HP] >= 1 && m[RAM_MAX_HP] <= 5 && m[RAM_LIVES] >= 1 && m[RAM_LIVES] <= 99);
+        if (!in_game) return;
+        if (!classic_diff_applied) {
+            apply_difficulty_preset();
+            classic_diff_applied = true;
+        }
+    }
     if (cfg.diff == 2 || cfg.c_shoes) m[RAM_SPEEDY_SHOE] = 0xFF;
     if (cfg.diff == 3) {
         if (m[RAM_MAX_HP] > 1) m[RAM_MAX_HP] = 1;
@@ -608,7 +620,19 @@ static void apply_cheats_frame(void)
     if (cfg.c_jump)    m[RAM_SUPER_JUMP] = 0x48;
     if (cfg.c_timer)   m[RAM_TIMER] = 0;
     if (cfg.c_ghost)   m[RAM_GHOST] = 0x02;
-    if (cfg.c_sunsoft) m[RAM_CHEAT_MODE] = 0x08;
+}
+
+static void launch_classic_boot(void)
+{
+    if (audio) SDL_ClearQueuedAudio(audio);
+    scripting = false;
+    vars_dirty = true;
+    mute = false;
+    core.reset();
+    started = true;
+    classic_boot = true;
+    classic_diff_applied = false;
+    if (cfg.c_sunsoft && wram()) wram()[RAM_CHEAT_MODE] = 0x08;
 }
 
 static void launch_world(int world_id, bool fast_skip_load)
@@ -636,6 +660,8 @@ static void launch_world(int world_id, bool fast_skip_load)
         }
     }
     started = true;
+    classic_boot = false;
+    classic_diff_applied = true;
     apply_difficulty_preset();
     apply_cheats_frame();
 
@@ -650,6 +676,8 @@ static void open_world_map(void)
     if (audio) SDL_ClearQueuedAudio(audio);
     core.unserialize(map_snap, snap_size);
     started = true;
+    classic_boot = false;
+    classic_diff_applied = true;
     apply_difficulty_preset();
     apply_cheats_frame();
 }
@@ -818,14 +846,14 @@ static int build(item_t *it)
     const char *on_s = T("SI", "ON"), *off_s = T("NO", "OFF");
 
     if (page == P_START) {
-        it[n++] = (item_t){ T("JUGAR (1-1 RAPIDO)", "PLAY (FAST 1-1)"),   NULL, NULL, 1 };
-        it[n++] = (item_t){ T("MAPA DEL MUNDO",     "WORLD MAP"),         NULL, NULL, 2 };
-        it[n++] = (item_t){ T("IR A MUNDO (1-7)",   "WARP TO WORLD"),     NULL, NULL, 3 };
-        it[n++] = (item_t){ T("DIFICULTAD",         "DIFFICULTY"),        diff_name(), NULL, 4 };
-        it[n++] = (item_t){ T("PODERES Y TRUCOS",   "POWERS & CHEATS"),   NULL, NULL, 5 };
-        it[n++] = (item_t){ T("OPCIONES",           "OPTIONS"),           NULL, NULL, 6 };
-        it[n++] = (item_t){ T("CONTROLES",          "CONTROLS"),          NULL, NULL, 7 };
-        it[n++] = (item_t){ T("SALIR",              "QUIT"),              NULL, NULL, 8 };
+        it[n++] = (item_t){ T("INICIO RAPIDO (1-1)", "FAST START (1-1)"),   NULL, NULL, 1 };
+        it[n++] = (item_t){ T("MODO CLASICO",        "CLASSIC MODE"),       NULL, NULL, 2 };
+        it[n++] = (item_t){ T("IR A MUNDO (1-7)",    "WARP TO WORLD"),      NULL, NULL, 3 };
+        it[n++] = (item_t){ T("DIFICULTAD",          "DIFFICULTY"),         diff_name(), NULL, 4 };
+        it[n++] = (item_t){ T("PODERES Y TRUCOS",    "POWERS & CHEATS"),    NULL, NULL, 5 };
+        it[n++] = (item_t){ T("OPCIONES",            "OPTIONS"),            NULL, NULL, 6 };
+        it[n++] = (item_t){ T("CONTROLES",           "CONTROLS"),           NULL, NULL, 7 };
+        it[n++] = (item_t){ T("SALIR",               "QUIT"),               NULL, NULL, 8 };
     } else if (page == P_PAUSE) {
         snprintf(slot_buf, sizeof slot_buf, "SLOT %d", cfg.slot + 1);
         it[n++] = (item_t){ T("CONTINUAR",          "RESUME"),            NULL, NULL, 1 };
@@ -838,6 +866,7 @@ static int build(item_t *it)
         it[n++] = (item_t){ T("CONTROLES",          "CONTROLS"),          NULL, NULL, 8 };
         it[n++] = (item_t){ T("MENU INICIAL",       "TITLE MENU"),        NULL, NULL, 9 };
     } else if (page == P_WORLDS) {
+        it[n++] = (item_t){ T("0. MAPA DEL MUNDO", "0. WORLD MAP"), T("ORIGINAL", "ORIGINAL"), NULL, 90 };
         for (int i = 0; i < 7; i++)
             it[n++] = (item_t){ worlds[i].name, T(worlds[i].desc_es, worlds[i].desc_en), NULL, i };
         it[n++] = (item_t){ T("VOLVER", "BACK"), NULL, NULL, 99 };
@@ -919,7 +948,7 @@ static void activate(void)
 
     if (page == P_START) {
         if (id == 1) { launch_world(0, true); state = ST_PLAY; }
-        else if (id == 2) { open_world_map(); state = ST_PLAY; }
+        else if (id == 2) { launch_classic_boot(); state = ST_PLAY; }
         else if (id == 3) { page = P_WORLDS; sel = 0; }
         else if (id == 4) { cfg.diff = (cfg.diff + 1) % 4; save_cfg(); }
         else if (id == 5) { page = P_CHEATS; sel = 0; }
@@ -941,6 +970,7 @@ static void activate(void)
         else if (id == 9) { started = false; page = P_START; sel = 0; }
     } else if (page == P_WORLDS) {
         if (id == 99) back();
+        else if (id == 90) { open_world_map(); state = ST_PLAY; show_toast(T("MAPA DEL MUNDO", "WORLD MAP")); }
         else { launch_world(id, true); state = ST_PLAY; show_toast(worlds[id].name); }
     } else if (page == P_CHEATS) {
         if (id == 99) back();
@@ -1020,7 +1050,7 @@ static void draw_menu(void)
     int x = 32, y0 = 42, step_y = 18, vx = 234, rows = n, first = 0;
     if (page == P_START)    { step_y = 18; y0 = 42; }
     if (page == P_PAUSE)    { step_y = 16; y0 = 40; }
-    if (page == P_WORLDS)   { step_y = 18; y0 = 42; x = 28; }
+    if (page == P_WORLDS)   { step_y = 16; y0 = 40; x = 28; }
     if (page == P_CHEATS)   { step_y = 14; y0 = 40; x = 28; }
     if (page == P_OPTIONS)  { step_y = 17; y0 = 42; x = 28; }
     if (page == P_CONTROLS) {
