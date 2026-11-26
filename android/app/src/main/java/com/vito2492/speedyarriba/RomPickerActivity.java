@@ -73,7 +73,11 @@ public class RomPickerActivity extends Activity {
         Uri uri = data.getData();
         try (InputStream in = getContentResolver().openInputStream(uri)) {
             if (in == null) throw new Exception("No se pudo abrir");
-            byte[] buf = in.readAllBytes();
+            java.io.ByteArrayOutputStream acc = new java.io.ByteArrayOutputStream();
+            byte[] tmp = new byte[16384];
+            int n;
+            while ((n = in.read(tmp)) > 0) acc.write(tmp, 0, n);
+            byte[] buf = unzipRom(acc.toByteArray());
             int off = (buf.length == ROM_SIZE + 512) ? 512 : 0;
             if (buf.length - off != ROM_SIZE) {
                 Toast.makeText(this, "Tamano invalido (esperado 1 MB)", Toast.LENGTH_LONG).show();
@@ -96,5 +100,23 @@ public class RomPickerActivity extends Activity {
     private void launchGame() {
         startActivity(new Intent(this, SpeedyActivity.class));
         finish();
+    }
+
+    /** Accepts the ROM loose or inside a .zip (first .sfc/.smc entry). */
+    static byte[] unzipRom(byte[] raw) throws java.io.IOException {
+        if (raw.length < 4 || raw[0] != 'P' || raw[1] != 'K') return raw;
+        try (java.util.zip.ZipInputStream z = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(raw))) {
+            java.util.zip.ZipEntry e;
+            while ((e = z.getNextEntry()) != null) {
+                String n = e.getName().toLowerCase(java.util.Locale.ROOT);
+                if (e.isDirectory() || !(n.endsWith(".sfc") || n.endsWith(".smc"))) continue;
+                java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream();
+                byte[] t = new byte[16384];
+                int k;
+                while ((k = z.read(t)) > 0) o.write(t, 0, k);
+                return o.toByteArray();
+            }
+        }
+        return raw;
     }
 }

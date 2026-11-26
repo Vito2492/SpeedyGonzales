@@ -5,10 +5,13 @@
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
 
     <application
+        android:extractNativeLibs="true"
         android:label="Speedy Arriba!"
         android:icon="@drawable/ic_launcher"
         android:hardwareAccelerated="true"
         android:allowBackup="false">
+        <!-- the Back button reaches the game (it pauses) -->
+        <meta-data android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON" android:value="1" />
 
         <activity
             android:name=".RomPickerActivity"

@@ -1,6 +1,6 @@
 # Speedy Gonzales: Arriba Edition (SNES Frontend)
 
-Native, cross-platform enhanced frontend for **Speedy Gonzales: Los Gatos Bandidos (USA, 1995, SNES)** built in C + SDL2 + `snes9x_libretro` for **Windows (`.exe`)**, **Linux (`.AppImage`)**, and **Android (`.apk`)**.
+Native, cross-platform enhanced frontend for **Speedy Gonzales: Los Gatos Bandidos (USA, 1995, SNES)** built in C + SDL2 + `snes9x_libretro` for **Windows (`.exe`)**, **Linux**, and **Android (`.apk`)**.
 
 > **Legal Notice:** This repository contains **zero** copyrighted ROMs, graphics, fonts, or audio. On first launch, the application prompts you to link your own legally dumped `Speedy Gonzales - Los Gatos Bandidos (USA).sfc` (or `.smc`) ROM, validates it locally, extracts the menu art & 4bpp cartoon font directly from your ROM in memory, and never modifies the ROM file on disk.
 
@@ -38,21 +38,40 @@ Native, cross-platform enhanced frontend for **Speedy Gonzales: Los Gatos Bandid
 
 ---
 
-## Building Locally
+## Descargar y jugar
 
-### Windows (MSVC 2022)
-Place `SDL2.dll` and `snes9x_libretro.dll` next to `build_win.bat` and run:
-```bat
-build_win.bat
-```
+### Windows
+1. Descarga [SpeedyGonzales-Windows.zip](https://github.com/Vito2492/SpeedyGonzales/releases/latest/download/SpeedyGonzales-Windows.zip) y descomprímelo.
+2. Abre `Speedy.exe`. La primera vez elige tu ROM `Speedy Gonzales - Los Gatos Bandidos (USA).sfc` (`.sfc` o `.smc`), o déjala junto al `.exe`.
 
 ### Linux
-```bash
-sudo apt install libsdl2-dev pkg-config
-make
-# Optional AppImage:
-bash packaging/linux/build_appimage.sh
-```
+1. Descarga [SpeedyGonzales-Linux.tar.gz](https://github.com/Vito2492/SpeedyGonzales/releases/latest/download/SpeedyGonzales-Linux.tar.gz).
+2. Descomprime y ejecuta (trae su propia copia de SDL2 en `lib/`):
+   ```bash
+   tar xzf SpeedyGonzales-Linux.tar.gz && cd SpeedyGonzales-Linux
+   ./speedy "ruta/a/Speedy Gonzales - Los Gatos Bandidos (USA).sfc"
+   ```
 
 ### Android
-See [.github/workflows/build.yml](.github/workflows/build.yml) for the automated Gradle + CMake + SDL2 + `snes9x_libretro` build pipeline (generates `SpeedyArriba-Android.apk` on every push and GitHub Release on `v*` tags).
+1. Descarga e instala [SpeedyGonzales-Android.apk](https://github.com/Vito2492/SpeedyGonzales/releases/latest/download/SpeedyGonzales-Android.apk) desde el celular (hay que permitir instalar apps de origen desconocido).
+2. La primera vez te pide elegir tu ROM (`.sfc`, `.smc` o `.zip`); se valida y queda guardada dentro de la app.
+3. Las versiones nuevas se instalan encima y conservan las partidas. Juega con la pantalla táctil o con un mando Bluetooth/USB.
+
+> Ningún paquete incluye el juego: necesitas tu propia copia (versión USA).
+
+---
+
+## Compilación desde código fuente
+
+- **Linux:** `sudo apt install libsdl2-dev && make` (pon `snes9x_libretro.so` junto al programa).
+- **Windows (MinGW, igual que el CI):**
+  ```bash
+  x86_64-w64-mingw32-gcc -O2 -Isrc -I$SDL/include/SDL2 -I$SDL/include src/speedy.c -o Speedy.exe \
+    -L$SDL/lib -lmingw32 -lSDL2main -lSDL2 -lcomdlg32 -luser32 -lshell32 -lm -mwindows
+  ```
+  (o `build_win.bat` con MSVC 2022). Junto al `.exe` van `SDL2.dll` y `snes9x_libretro.dll`.
+- **Android:** `tools/android-prepare.sh SDL2-2.30.9 snes9x/libretro/libs` y luego `cd android && gradle assembleRelease` (el workflow muestra los pasos completos).
+- **GitHub Actions:** [`.github/workflows/build.yml`](.github/workflows/build.yml) compila Windows, Linux y Android (arm64-v8a, armeabi-v7a, x86_64) en cada push a `main`, con SDL2 2.30.9 y snes9x compilado desde su código fuente, y publica o actualiza el release `v` + [`VERSION`](VERSION).
+- **Firma del APK:** con los secretos `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD` el APK sale firmado siempre con la misma clave, así cada versión se instala encima de la anterior. Sin ellos se compila igual, pero el APK no se publica.
+
+

@@ -15,7 +15,6 @@
 *.apk
 *.keystore
 *.jks
-speedy
 build/
 dist/
 test_out/
@@ -27,3 +26,13 @@ android/app/build/
 android/app/.cxx/
 android/app/src/main/jniLibs/
 android/local.properties
+
+# built here or by CI
+/speedy
+/Speedy*.zip
+/SpeedyGonzales-*
+android/app/jni/SDL/
+android/app/src/main/java/org/
+android/app/src/main/assets/licenses/
+/SDL2-*/
+/snes9x/

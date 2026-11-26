@@ -1,51 +1,59 @@
-plugins {
-    id 'com.android.application'
-}
+// SpeedyGonzales for Android: SDL2 and the program are built by CMake into
+// libSDL2.so and libmain.so (jni/CMakeLists.txt); the snes9x core comes
+// prebuilt in jniLibs. tools/android-prepare.sh puts SDL and the core in place.
+apply plugin: 'com.android.application'
 
 android {
     namespace 'com.vito2492.speedyarriba'
     compileSdk 34
-
+    if (project.hasProperty('ndkVersion')) ndkVersion project.property('ndkVersion')
     defaultConfig {
-        applicationId "com.vito2492.speedyarriba"
+        applicationId 'com.vito2492.speedyarriba'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
-
-        ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
-        }
+        versionCode Integer.parseInt((project.findProperty('versionCode') ?: '1').toString())
+        versionName((project.findProperty('versionName') ?: '1.0').toString())
         externalNativeBuild {
             cmake {
-                arguments "-DSDL2_DIR=${project.findProperty('SDL2_DIR') ?: System.getenv('SDL2_DIR') ?: ''}"
+                arguments '-DANDROID_STL=c++_static'
+                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
             }
         }
     }
-
+    // The release key comes from the environment (GitHub secrets). Without it
+    // the APK is signed with the debug key, which changes on every machine.
+    def ks = System.getenv('ANDROID_KEYSTORE')
+    signingConfigs {
+        if (ks && file(ks).exists()) {
+            release {
+                storeFile file(ks)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            if (ks && file(ks).exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
-
+    packagingOptions {
+        jniLibs { useLegacyPackaging true }        // the core is opened by name with dlopen
+    }
     externalNativeBuild {
         cmake {
-            path "src/main/cpp/CMakeLists.txt"
+            path 'jni/CMakeLists.txt'
+            version '3.22.1'
         }
     }
-
-    sourceSets {
-        main {
-            def sdl2Dir = project.findProperty('SDL2_DIR') ?: System.getenv('SDL2_DIR')
-            if (sdl2Dir) {
-                java.srcDirs += "${sdl2Dir}/android-project/app/src/main/java"
-            }
-            jniLibs.srcDirs = ['src/main/jniLibs']
-        }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
-}
-
-dependencies {
 }
